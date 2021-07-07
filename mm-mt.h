@@ -19,6 +19,16 @@ void load_matrix();
 void multiply();
 
 // Any additional variables needed go here
-#define BSIZE 50
-// Any helper functions go here
+#define BSIZE 25
 
+// Any helper functions go here
+struct inner_mat_mul_arg {
+    long i;
+    long jj;
+    long kk;
+};
+
+struct outer_mat_mul_arg {
+    long jj;
+    long kk;
+};
