@@ -6,13 +6,14 @@
 
 
 // Task 1: Flush the cache so that we can do our measurement :)
-void flush_all_caches()
-{
-	free_all();
-	huge_matrixA = malloc(sizeof(long)*(long)SIZEX*(long)SIZEY);
-	huge_matrixB = malloc(sizeof(long)*(long)SIZEX*(long)SIZEY);
-	huge_matrixC = malloc(sizeof(long)*(long)SIZEX*(long)SIZEY);
-	free_all();
+void flush_all_caches(){ 
+	// https://stackoverflow.com/a/3446139
+	const int size = 20*1024*1024; // Allocate 20M. Set much larger then L2
+	char *c = (char *)malloc(size);
+	for (int i = 0; i < 0xffff; i++)
+		for (int j = 0; j < size; j++)
+			c[j] = i*j;
+	free(c);
 }
 
 void load_matrix_base()
@@ -72,8 +73,7 @@ void compare_results()
 void write_results()
 {
 	fout = fopen("./out.in","w");
-	long i, j;
-	char buffer[sizeof(long)]; 
+	long i, j; 
 	for (i = 0; i < ((long)SIZEX*(long)SIZEY); i+=((long)SIZEX)){
 		for (j = 0; j < ((long)SIZEY); j++) {
 			fprintf(fout, "%ld ", huge_matrixC[i + j]); 
@@ -85,83 +85,42 @@ void write_results()
 
 void load_matrix()
 {
-	long i;
+	long i, inner = 0, outter = 0;
 	huge_matrixA = malloc(sizeof(long)*(long)SIZEX*(long)SIZEY);
 	huge_matrixB = malloc(sizeof(long)*(long)SIZEX*(long)SIZEY);
 	huge_matrixC = malloc(sizeof(long)*(long)SIZEX*(long)SIZEY);
 	// Load the input
 	// Note: This is suboptimal because each of these loads can be done in parallel.
-	if(fin1 == NULL) {
-		printf("nope\n");
-	}
-
-	for(i=0;i<((long)SIZEX*(long)SIZEY);i++)
-	{
-		printf("%ld", i);
+	for(i=0;i<((long)SIZEX*(long)SIZEY);i++){
 		fscanf(fin1, "%ld", (huge_matrixA + i));
-		fscanf(fin2,"%ld", (huge_matrixB+i)); 		
-		huge_matrixC[i] = 0;		
+		fscanf(fin2, "%ld", (huge_matrixB + inner + ((long)SIZEX*outter++)));
+		if(outter == SIZEX) {
+			inner++;
+			outter = 0;
+		}
+		huge_matrixC[i] = 0;
 	}
 }
 
 void multiply(){
-// 	int i, j, k, kk, jj;
-//     double sum;
-//     int en = BSIZE * (SIZEX/BSIZE); /* Amount that fits evenly into blocks */
-  
-//     for (i = 0; i < n; i++)
-// 		for (j = 0; j < n; j++)
-// 			C[i][j] = 0.0;
-
-//     for (kk = 0; kk < en; kk += BSIZE) { 
-// 		for (jj = 0; jj < en; jj += BSIZE) {
-// 			for (i = 0; i < SIZEX; i++) {
-// 				for (j = jj; j < jj + BSIZE; j++) {
-// 					sum = C[i][j];
-// 					for (k = kk; k < kk + BSIZE; k++) {
-// 						sum += huge_matrixA[i][k]*B[k][j];
-// 					}
-// 					C[i][j] = sum;
-// 				}
-// 			}
-// 		}
-// 	/* $end bmm-ijk */
-// 	/* Now finish off rest of j values  (not shown in textbook) */
-// 		for (i = 0; i < SIZEX; i++) {
-// 			for (j = en; j < SIZEX; j++) {
-// 				sum = C[i][j];
-// 				for (k = kk; k < kk + BSIZE; k++) {
-// 					sum += A[i][k]*B[k][j];
-// 				}
-// 				C[i][j] = sum;
-// 			}
-// 		}
-//     }
-
-//     /* Now finish remaining k values (not shown in textbook) */ 
-//     for (jj = 0; jj < en; jj += BSIZE) {
-// 		for (i = 0; i < SIZEX; i++) {
-// 			for (j = jj; j < jj + BSIZE; j++) {
-// 			sum = C[i][j];
-// 			for (k = en; k < SIZEX; k++) {
-// 				sum += A[i][k]*B[k][j];
-// 			}
-// 			C[i][j] = sum;
-// 			}
-// 		}
-//     }
-    
-//     /* Now finish off rest of j values (not shown in textbook) */
-//     for (i = 0; i < SIZEX; i++) {
-// 		for (j = en; j < SIZEX; j++) {
-// 			sum = C[i][j];
-// 			for (k = en; k < SIZEX; k++) {
-// 			sum += A[i][k]*B[k][j];
-// 			}
-// 			C[i][j] = sum;
-// 		}
-//     }
-//     /* $begin bmm-ijk */
+	long i, j, k, kk, jj, i_mult, j_mult;
+    long sum;
+    long en = (long)(SIZEX); /* Amount that fits evenly into blocks */
+	for (kk = 0; kk < en; kk += (long)BSIZE){
+		for (jj = 0; jj < en; jj += (long) BSIZE) {
+			for (i = 0; i < (long)SIZEX; i++) {
+				i_mult = (i * (long)SIZEX);
+				for (j = jj; j < jj + (long)BSIZE; j++){
+					sum = huge_matrixC[i_mult + j];
+					j_mult = j * (long)SIZEX;
+					for (k = kk; k < kk + (long)BSIZE; k++){
+						sum += huge_matrixA[i_mult + k] * huge_matrixB[k + j_mult];
+					}
+					huge_matrixC[(i*(long)SIZEX) + j] = sum;
+				}
+			}
+		}
+	}
 }
 
 int main()
@@ -194,26 +153,30 @@ int main()
 	fclose(fin1);
 	fclose(fin2);
 	fclose(fout);
-	// free_all();
+	free_all();
 
-	// flush_all_caches();
+	fin1 = fopen("./input1.in","r");
+	fin2 = fopen("./input2.in","r");
+	fout = fopen("./out.in","w");
+	
+	flush_all_caches();
 
-	// s = clock();
-	// load_matrix();
-	// t = clock();
-	// total_in_your += ((double)t-(double)s) / CLOCKS_PER_SEC;
-	// printf("Total time taken during the load = %f seconds\n", total_in_your);
+	s = clock();
+	load_matrix();
+	t = clock();
+	total_in_your += ((double)t-(double)s) / CLOCKS_PER_SEC;
+	printf("Total time taken during the load = %f seconds\n", total_in_your);
 
-	// s = clock();
-	// multiply();
-	// t = clock();
-	// total_mul_your += ((double)t-(double)s) / CLOCKS_PER_SEC;
-	// printf("Total time taken during the multiply = %f seconds\n", total_mul_your);
+	s = clock();
+	multiply();
+	t = clock();
+	total_mul_your += ((double)t-(double)s) / CLOCKS_PER_SEC;
+	printf("Total time taken during the multiply = %f seconds\n", total_mul_your);
 	write_results();
-	// fclose(fin1);
-	// fclose(fin2);
-	// fclose(fout);
-	// free_all();
+	fclose(fin1);
+	fclose(fin2);
+
+	free_all();
 	compare_results();
 
 	return 0;
