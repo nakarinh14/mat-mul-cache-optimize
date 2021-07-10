@@ -20,6 +20,7 @@ void multiply();
 
 // Any additional variables needed go here
 #define BSIZE 25
+#define THREAD_N 10
 
 // Any helper functions go here
 struct inner_mat_mul_arg {
