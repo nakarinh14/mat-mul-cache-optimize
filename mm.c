@@ -116,7 +116,7 @@ void multiply(){
 					for (k = kk; k < kk + (long)BSIZE; k++){
 						sum += huge_matrixA[i_mult + k] * huge_matrixB[k + j_mult];
 					}
-					huge_matrixC[(i*(long)SIZEX) + j] = sum;
+					huge_matrixC[i_mult + j] = sum;
 				}
 			}
 		}

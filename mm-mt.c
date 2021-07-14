@@ -5,7 +5,7 @@
 #include "mm-mt.h"
 
 pthread_mutex_t outer_lock;
-long n_per_thread = (SIZEX * SIZEY) / THREAD_N;
+const long n_per_thread = (SIZEX * SIZEY) / THREAD_N;
 // Task 1: Flush the cache so that we can do our measurement :)
 void flush_all_caches(){ 
 	// https://stackoverflow.com/a/3446139
@@ -126,72 +126,6 @@ void load_matrix()
        pthread_join(thread_id[i], NULL);
 }
 
-void * inner_mat_mul(void *arg) {
-    struct inner_mat_mul_arg *inner_arg = (struct inner_mat_mul_arg *)arg;
-    // printf("got arg...\n");
-    long sum, j_mult, j, k;
-    long i = inner_arg->i, jj = inner_arg->jj, kk = inner_arg->kk;
-    long i_mult = i * (long)SIZEX;
-    // printf("got i...: %ld\n", *(inner_arg->i));
-    // printf("jj: %ld\n", *(inner_arg->jj));
-    // printf("kk: %ld\n", *(inner_arg->kk));
-    for (j = jj; j < jj + (long)BSIZE; j++){
-        sum = huge_matrixC[i_mult + j];
-        j_mult = j * (long)SIZEX;
-        for (k = kk; k < kk + (long)BSIZE; k++){
-            sum += huge_matrixA[i_mult + k] * huge_matrixB[k + j_mult];
-        }
-        pthread_mutex_lock(&outer_lock);
-        huge_matrixC[i_mult + j] = sum;
-        pthread_mutex_unlock(&outer_lock);
-    }
-    pthread_exit(NULL);
-}
-
-void * outter_mat_mul(void *arg) {
-    long i, j, k, kk, jj, i_mult, j_mult, sum;
-    kk = (long) arg;
-    for (jj = 0; jj < (long)SIZEX; jj += (long)BSIZE)
-    {
-        for (i = 0; i < (long)SIZEX; i++){
-            i_mult = (i * (long)SIZEX);
-            for (j = jj; j < jj + (long)BSIZE; j++){
-                // pthread_mutex_lock(&outer_lock);
-                sum = huge_matrixC[i_mult + j];
-                j_mult = j * (long)SIZEX;
-                for (k = kk; k < kk + (long)BSIZE; k++){
-                    sum += huge_matrixA[i_mult + k] * huge_matrixB[k + j_mult];
-                }
-                huge_matrixC[i_mult + j] = sum;
-                // pthread_mutex_unlock(&outer_lock);
-            }
-        }
-    }
-    pthread_exit(NULL);
-}
-
-void * jj_multi_thread(void *arg) {
-    long sum, i_mult, jj, j, j_mult, i, k, kk;
-    struct outer_mat_mul_arg *mat_arg = (struct outer_mat_mul_arg *)arg;
-    jj = mat_arg->jj;
-    kk = mat_arg->kk;
-    for (i = 0; i < (long)SIZEX; i++)
-    {
-        i_mult = (i * (long)SIZEX);
-        for (j = jj; j < jj + (long)BSIZE; j++){
-            // pthread_mutex_lock(&outer_lock);
-            sum = huge_matrixC[i_mult + j];
-            j_mult = j * (long)SIZEX;
-            for (k = kk; k < kk + (long)BSIZE; k++){
-                sum += huge_matrixA[i_mult + k] * huge_matrixB[k + j_mult];
-            }
-            huge_matrixC[i_mult + j] = sum;
-            // pthread_mutex_unlock(&outer_lock);
-        }
-    }
-    pthread_exit(NULL);
-}
-
 void * thread_multiply(void * args) {
 	long start_row, end_row, thread_num, c, i, sum, row, col;
 	thread_num = (long) args;
@@ -219,55 +153,6 @@ void multiply() {
 	for (i = 0; i < THREAD_N; i++) {
 		pthread_join(tid[i], NULL);
 	}
-}
-
-void multiply_old(){
-	long i, j, k, kk, jj, i_mult, j_mult;
-    long sum;
-    long en = (long)(SIZEX); /* Amount that fits evenly into blocks */
-    long N = en / (long)BSIZE;
-    long counter = 0;
-    pthread_t outer_tid[N];
-    for (kk = 0; kk < en; kk += (long)BSIZE){
-        // pthread_create(&outer_tid[counter], NULL, outter_mat_mul, (void *)kk);
-		for (jj = 0, counter = 0; jj < en; jj += (long) BSIZE, counter++) {
-            // struct outer_mat_mul_arg arg = {jj, kk};
-            // struct outer_mat_mul_arg *inner_arg = (struct outer_mat_mul_arg *)malloc(sizeof(struct outer_mat_mul_arg));
-            // inner_arg->jj = jj;
-            // inner_arg->kk = kk;
-            // pthread_create(&outer_tid[counter], NULL, jj_multi_thread, (void *)&arg);
-            for (i = 0; i < (long)SIZEX; i++){
-                // struct inner_mat_mul_arg *inner_arg = (struct inner_mat_mul_arg *)malloc(sizeof(struct inner_mat_mul_arg));
-                // inner_arg->i = i;
-                // inner_arg->jj = jj;
-                // inner_arg->kk = kk;
-                // printf("creating thread...\n");
-                // pthread_create(&inner_tid[i], NULL, inner_mat_mul, (void *)inner_arg);
-			
-				i_mult = (i * (long)SIZEX);
-				for (j = jj; j < jj + (long)BSIZE; j++){
-					sum = huge_matrixC[i_mult + j];
-					j_mult = j * (long)SIZEX;
-					for (k = kk; k < kk + (long)BSIZE; k++){
-						sum += huge_matrixA[i_mult + k] * huge_matrixB[k + j_mult];
-					}
-					huge_matrixC[(i*(long)SIZEX) + j] = sum;
-				}
-			}
-        }
-            // printf("done calling all threads\n");
-            // for (i = 0; i < (long)SIZEX; i++){
-            //     printf("waiting thread: %ld\n", i);
-            //     pthread_join(inner_tid[i], NULL);
-            // }
-    }
-        // for (counter = 0; counter < N; counter++){
-		//     pthread_join(outer_tid[counter], NULL);
-	    // }
-    
-    // for (counter = 0; counter < N; counter++){
-	// 	pthread_join(outer_tid[counter], NULL);
-	// }
 }
 
 int main()
