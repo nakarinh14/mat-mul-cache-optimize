@@ -113,8 +113,17 @@ void multiply(){
 				for (j = jj; j < jj + (long)BSIZE; j++){
 					sum = huge_matrixC[i_mult + j];
 					j_mult = j * (long)SIZEX;
-					for (k = kk; k < kk + (long)BSIZE; k++){
+					for (k = kk; k < kk + (long)BSIZE; k+= 10){ // loop unrolling
 						sum += huge_matrixA[i_mult + k] * huge_matrixB[k + j_mult];
+						sum += huge_matrixA[i_mult + k+1] * huge_matrixB[k+1 + j_mult];
+						sum += huge_matrixA[i_mult + k+2] * huge_matrixB[k+2 + j_mult];
+						sum += huge_matrixA[i_mult + k+3] * huge_matrixB[k+3 + j_mult];
+						sum += huge_matrixA[i_mult + k+4] * huge_matrixB[k+4 + j_mult];
+						sum += huge_matrixA[i_mult + k+5] * huge_matrixB[k+5 + j_mult];
+						sum += huge_matrixA[i_mult + k+6] * huge_matrixB[k+6 + j_mult];
+						sum += huge_matrixA[i_mult + k+7] * huge_matrixB[k+7 + j_mult];
+						sum += huge_matrixA[i_mult + k+8] * huge_matrixB[k+8 + j_mult];
+						sum += huge_matrixA[i_mult + k+9] * huge_matrixB[k+9 + j_mult];
 					}
 					huge_matrixC[i_mult + j] = sum;
 				}

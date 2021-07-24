@@ -1,5 +1,5 @@
-#define SIZEX 2000
-#define SIZEY 2000
+#define SIZEX 2200
+#define SIZEY 2200
 
 long * huge_matrixA;
 long * huge_matrixB;
@@ -19,6 +19,6 @@ void load_matrix();
 void multiply();
 
 // Any additional variables needed go here
-#define THREAD_N 10
+#define THREAD_N 100
 
 // Any helper functions go here
